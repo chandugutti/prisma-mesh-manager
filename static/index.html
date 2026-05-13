@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CloudBlades — Prisma SD-WAN</title>
+<link rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+<style>
+:root {
+  --icon-w:      48px;
+  --nav-w:       196px;
+  --header-h:    46px;
+  --icon-bg:     #111d2c;
+  --nav-bg:      #1a2535;
+  --accent:      #1890ff;
+  --success:     #52c41a;
+  --warning:     #fa8c16;
+  --danger:      #ff4d4f;
+  --text:        #262626;
+  --text-2:      #595959;
+  --text-muted:  #8c8c8c;
+  --border:      #d9d9d9;
+  --border-light:#f0f0f0;
+  --card-bg:     #ffffff;
+  --page-bg:     #f0f2f5;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px; color: var(--text); background: var(--page-bg);
+  display: flex; min-height: 100vh;
+}
+
+/* ── Icon strip ──────────────────────────────────────────────────────────── */
+#icon-strip {
+  width: var(--icon-w); background: var(--icon-bg);
+  min-height: 100vh; display: flex; flex-direction: column; align-items: center;
+  flex-shrink: 0; position: fixed; left: 0; top: 0; bottom: 0; z-index: 200;
+}
+.is-logo {
+  width: 100%; height: var(--header-h);
+  display: flex; align-items: center; justify-content: center;
+  border-bottom: 1px solid rgba(255,255,255,.06); margin-bottom: 6px; flex-shrink: 0;
+}
+.is-nav { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; width: 100%; padding: 0 6px; }
+.is-item {
+  width: 36px; height: 36px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(255,255,255,.4); cursor: pointer; transition: all .15s; position: relative;
+}
+.is-item:hover { background: rgba(255,255,255,.07); color: rgba(255,255,255,.75); }
+.is-item.active { background: rgba(24,144,255,.2); color: var(--accent); }
+.is-item i { font-size: 14px; }
+.is-bottom { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 0 6px 12px; width: 100%; }
+
+/* ── Nav sidebar ─────────────────────────────────────────────────────────── */
+#nav {
+  width: var(--nav-w); background: var(--nav-bg);
+  min-height: 100vh; flex-shrink: 0;
+  position: fixed; left: var(--icon-w); top: 0; bottom: 0; z-index: 100;
+  overflow-y: auto; overflow-x: hidden;
+}
+.nav-section {
+  padding: 14px 10px 3px;
+  font-size: 10px; font-weight: 700; letter-spacing: .09em;
+  color: rgba(255,255,255,.3); text-transform: uppercase;
+}
+.nav-item {
+  display: flex; align-items: center; padding: 7px 12px;
+  color: rgba(255,255,255,.6); cursor: pointer; transition: all .12s;
+  font-size: 12.5px; border-left: 3px solid transparent; user-select: none;
+}
+.nav-item:hover { color: #fff; background: rgba(255,255,255,.04); }
+.nav-item.active { color: #fff; background: rgba(24,144,255,.12); border-left-color: var(--accent); }
+
+/* ── Layout ──────────────────────────────────────────────────────────────── */
+#main {
+  margin-left: calc(var(--icon-w) + var(--nav-w));
+  flex: 1; display: flex; flex-direction: column; min-height: 100vh;
+}
+
+/* ── Topbar ──────────────────────────────────────────────────────────────── */
+#topbar {
+  height: var(--header-h); background: #fff;
+  border-bottom: 1px solid var(--border-light);
+  display: flex; align-items: center; padding: 0 20px;
+  position: sticky; top: 0; z-index: 50; gap: 8px; flex-shrink: 0;
+}
+.breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted); }
+.breadcrumb .sep { color: #d9d9d9; }
+.breadcrumb .crumb-link { color: var(--text-muted); cursor: pointer; transition: color .12s; }
+.breadcrumb .crumb-link:hover { color: var(--accent); }
+.breadcrumb .current { color: var(--text); font-weight: 500; }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.tenant-pill {
+  font-size: 12px; color: var(--text-muted);
+  display: flex; align-items: center; gap: 5px;
+  background: #f5f5f5; padding: 3px 10px; border-radius: 20px;
+}
+
+#content { flex: 1; padding: 20px 24px; }
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 14px; border-radius: 4px; border: 1px solid transparent;
+  cursor: pointer; font-size: 13px; font-weight: 400; transition: all .15s;
+}
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-primary:hover:not(:disabled) { background: #1677ff; border-color: #1677ff; }
+.btn-default { background: #fff; color: var(--text-2); border-color: var(--border); }
+.btn-default:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.btn-danger  { background: var(--danger); color: #fff; border-color: var(--danger); }
+.btn-danger:hover:not(:disabled) { background: #d9363e; }
+
+/* ── Page headline ───────────────────────────────────────────────────────── */
+.page-headline { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.page-headline i { font-size: 26px; color: var(--accent); }
+.page-headline h1 { font-size: 20px; font-weight: 600; color: var(--text); }
+
+/* ── Tiles grid ──────────────────────────────────────────────────────────── */
+.tiles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(296px, 1fr));
+  gap: 16px; align-items: start;
+}
+
+/* ── Tile card ───────────────────────────────────────────────────────────── */
+.tile {
+  background: var(--card-bg);
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  display: flex; flex-direction: column;
+  transition: box-shadow .2s;
+  box-shadow: 0 1px 2px rgba(0,0,0,.04);
+}
+.tile:hover { box-shadow: 0 4px 16px rgba(0,0,0,.1); }
+
+.tile-body { padding: 16px 16px 14px; flex: 1; }
+
+.tile-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+.tile-icon {
+  width: 42px; height: 42px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 700; flex-shrink: 0;
+}
+.tile-icon-initials { font-size: 14px; }
+.tile-header-text { flex: 1; min-width: 0; }
+.tile-name { font-size: 14px; font-weight: 600; color: var(--text); line-height: 1.3; }
+.tile-vendor-inline { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+
+.tile-status-dot {
+  width: 10px; height: 10px; border-radius: 50%; background: #bfbfbf;
+  flex-shrink: 0; margin-top: 4px;
+}
+.tile-status-dot.active { background: var(--success); }
+
+.tile-desc {
+  font-size: 12px; color: var(--text-muted); margin-bottom: 12px;
+  line-height: 1.55; display: -webkit-box; -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden;
+}
+.tile-meta { font-size: 12px; color: var(--text-2); }
+.tile-meta-row { display: flex; align-items: center; gap: 5px; line-height: 1.8; }
+.tile-meta-row strong { color: var(--text); font-weight: 500; }
+
+.paused-badge {
+  display: inline-block; border: 1px solid var(--warning);
+  color: var(--warning); font-size: 10px; padding: 1px 6px;
+  border-radius: 2px; margin-left: 6px;
+}
+
+.tile-actions {
+  border-top: 1px solid var(--border-light);
+  display: flex;
+}
+.tile-action {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  gap: 5px; padding: 9px 4px; font-size: 11.5px; color: var(--accent);
+  cursor: pointer; transition: background .12s;
+  border-right: 1px solid var(--border-light); user-select: none; white-space: nowrap;
+}
+.tile-action:last-child { border-right: none; }
+.tile-action:hover { background: #e6f7ff; }
+.tile-action.dim { color: var(--text-muted); cursor: default; pointer-events: none; }
+.tile-action i { font-size: 11px; }
+
+/* ── Panel header ────────────────────────────────────────────────────────── */
+.panel-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 18px; flex-wrap: wrap; gap: 10px;
+}
+.panel-title { font-size: 15px; font-weight: 600; }
+.panel-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+/* ── Steps ───────────────────────────────────────────────────────────────── */
+.steps {
+  display: flex; align-items: center; margin-bottom: 18px;
+  background: #fff; border: 1px solid var(--border-light);
+  border-radius: 4px; padding: 12px 20px;
+}
+.step-item { display: flex; align-items: center; gap: 8px; flex: 1; color: var(--text-muted); font-size: 12px; }
+.step-item.active .step-num  { background: var(--accent); color: #fff; }
+.step-item.active .step-label { color: var(--text); font-weight: 600; }
+.step-item.done .step-num    { background: var(--success); color: #fff; }
+.step-num {
+  width: 22px; height: 22px; border-radius: 50%; background: #f0f0f0;
+  color: var(--text-muted); display: grid; place-items: center;
+  font-size: 11px; font-weight: 700; flex-shrink: 0;
+}
+.step-sep { flex: 0 0 24px; height: 1px; background: #f0f0f0; margin: 0 4px; }
+
+/* ── Cards ───────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--card-bg); border: 1px solid var(--border-light);
+  border-radius: 4px; padding: 18px; margin-bottom: 14px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.04);
+}
+.card-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.card-sub   { font-size: 12px; color: var(--text-muted); margin-bottom: 14px; }
+
+/* ── Forms ───────────────────────────────────────────────────────────────── */
+.form-group { margin-bottom: 14px; }
+.form-label { display: block; font-size: 12px; font-weight: 500; margin-bottom: 5px; color: var(--text-2); }
+.form-input {
+  width: 100%; padding: 6px 11px; border: 1px solid var(--border);
+  border-radius: 4px; font-size: 13px; background: #fff; transition: border .15s;
+}
+.form-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px rgba(24,144,255,.15); }
+.form-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+/* ── Alerts ──────────────────────────────────────────────────────────────── */
+.alert {
+  padding: 9px 14px; border-radius: 4px; font-size: 13px;
+  display: flex; align-items: flex-start; gap: 8px; margin-bottom: 14px;
+}
+.alert i { margin-top: 1px; flex-shrink: 0; }
+.alert-error   { background: #fff2f0; border: 1px solid #ffccc7; color: #a8071a; }
+.alert-info    { background: #e6f4ff; border: 1px solid #91caff; color: #003eb3; }
+.alert-success { background: #f6ffed; border: 1px solid #b7eb8f; color: #237804; }
+.alert-warning { background: #fffbe6; border: 1px solid #ffe58f; color: #7c4a00; }
+
+/* ── Stats ───────────────────────────────────────────────────────────────── */
+.stats-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px; margin-bottom: 16px;
+}
+.stat-card {
+  background: #fafafa; border-radius: 4px; padding: 12px;
+  text-align: center; border: 1px solid var(--border-light);
+}
+.stat-card .num   { font-size: 26px; font-weight: 700; color: var(--accent); line-height: 1; }
+.stat-card .label { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+/* ── Domain cards ────────────────────────────────────────────────────────── */
+.domain-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px; margin-bottom: 14px;
+}
+.domain-card {
+  border: 1px solid var(--border); border-radius: 4px; padding: 12px;
+  cursor: pointer; transition: all .15s; background: #fff; position: relative;
+}
+.domain-card:hover { border-color: var(--accent); }
+.domain-card.selected { border-color: var(--accent); background: #e6f4ff; }
+.domain-check {
+  position: absolute; top: 10px; right: 10px; width: 16px; height: 16px;
+  border-radius: 50%; border: 1.5px solid var(--border); background: #fff;
+  display: grid; place-items: center; transition: all .15s;
+}
+.domain-card.selected .domain-check { background: var(--accent); border-color: var(--accent); }
+.domain-card.selected .domain-check::after { content: '✓'; color: #fff; font-size: 9px; font-weight: 700; }
+.domain-name { font-weight: 600; font-size: 13px; margin-bottom: 4px; padding-right: 22px; }
+.domain-meta { font-size: 11px; color: var(--text-muted); }
+.domain-pill {
+  display: inline-flex; align-items: center; gap: 3px;
+  background: #f0f2f5; border-radius: 20px; padding: 2px 7px;
+  font-size: 10px; margin-top: 4px;
+}
+
+/* ── Table ───────────────────────────────────────────────────────────────── */
+.table-wrap { max-height: 420px; overflow-y: auto; border: 1px solid var(--border-light); border-radius: 4px; }
+table { width: 100%; border-collapse: collapse; }
+th {
+  background: #fafafa; text-align: left; padding: 9px 12px;
+  font-size: 11px; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: .05em;
+  position: sticky; top: 0; border-bottom: 1px solid var(--border-light);
+}
+td { padding: 8px 12px; border-bottom: 1px solid var(--border-light); font-size: 12px; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #fafafa; }
+.wan-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 600; border-radius: 3px; padding: 2px 6px; }
+.wan-public  { background: #e6f4ff; color: #003eb3; }
+.wan-private { background: #f9f0ff; color: #531dab; }
+
+/* ── Progress ────────────────────────────────────────────────────────────── */
+.progress-wrap { margin: 14px 0; }
+.progress-label { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; }
+.progress-bar { height: 8px; background: #f0f0f0; border-radius: 4px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--accent); transition: width .3s; border-radius: 4px; }
+.progress-log {
+  max-height: 180px; overflow-y: auto; background: #0f1923; color: #8c9db5;
+  border-radius: 4px; padding: 10px 12px; font-size: 11px; font-family: monospace;
+  margin-top: 10px; line-height: 1.6;
+}
+.log-ok    { color: #52c41a; }
+.log-error { color: #ff4d4f; }
+
+/* ── Spinner ─────────────────────────────────────────────────────────────── */
+.spinner {
+  display: inline-block; width: 16px; height: 16px;
+  border: 2px solid rgba(24,144,255,.15); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin .6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Toast ───────────────────────────────────────────────────────────────── */
+#toast-wrap { position: fixed; top: 14px; right: 16px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.toast {
+  padding: 10px 16px; border-radius: 4px; font-size: 13px; min-width: 240px; max-width: 400px;
+  word-break: break-word; box-shadow: 0 4px 16px rgba(0,0,0,.15);
+  display: flex; align-items: flex-start; gap: 8px; pointer-events: all;
+  animation: slideIn .2s ease;
+}
+.toast-error   { background: #fff2f0; border-left: 3px solid var(--danger);  color: #a8071a; }
+.toast-success { background: #f6ffed; border-left: 3px solid var(--success); color: #237804; }
+.toast-info    { background: #e6f4ff; border-left: 3px solid var(--accent);  color: #003eb3; }
+@keyframes slideIn { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
+
+.page { display: none; }
+.page.active { display: block; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: #d9d9d9; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div id="toast-wrap"></div>
+
+<!-- ── Icon strip ────────────────────────────────────────────────────────── -->
+<div id="icon-strip">
+  <div class="is-logo">
+    <svg width="26" height="26" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="50" fill="#FFCE00"/>
+      <path d="M28 38 L50 38 L72 62 L50 62 Z" fill="#111d2c"/>
+      <path d="M50 38 L72 38 L72 62 Z" fill="#111d2c" opacity=".45"/>
+    </svg>
+  </div>
+  <div class="is-nav">
+    <div class="is-item" title="Dashboard"><i class="fa-solid fa-gauge"></i></div>
+    <div class="is-item" title="Analytics"><i class="fa-solid fa-chart-line"></i></div>
+    <div class="is-item active" title="Configuration"><i class="fa-solid fa-sliders"></i></div>
+    <div class="is-item" title="Policy"><i class="fa-solid fa-shield-halved"></i></div>
+    <div class="is-item" title="Deployment"><i class="fa-solid fa-sitemap"></i></div>
+    <div class="is-item" title="Favorites"><i class="fa-regular fa-star"></i></div>
+    <div class="is-item" title="Alerts"><i class="fa-regular fa-bell"></i></div>
+  </div>
+  <div class="is-bottom">
+    <div class="is-item" title="Help"><i class="fa-regular fa-circle-question"></i></div>
+    <div class="is-item" title="Account"><i class="fa-regular fa-circle-user"></i></div>
+  </div>
+</div>
+
+<!-- ── Navigation sidebar ────────────────────────────────────────────────── -->
+<nav id="nav">
+  <div class="nav-section">Configuration</div>
+  <div class="nav-item">Data Loss Prevention</div>
+  <div class="nav-item">ZTNA Connector</div>
+  <div class="nav-item">IP Tag Collection</div>
+  <div class="nav-item">Prisma Access Upgrades</div>
+  <div class="nav-item">Privileged Remote Access</div>
+  <div class="nav-item">WildFire Setting</div>
+
+  <div class="nav-section">Operations</div>
+  <div class="nav-item">Push Config</div>
+  <div class="nav-item">Push Status</div>
+  <div class="nav-item">Config Version Snapshots</div>
+
+  <div class="nav-section">Posture</div>
+  <div class="nav-item">Settings</div>
+  <div class="nav-item">Config Cleanup</div>
+  <div class="nav-item">Policy Optimizer</div>
+  <div class="nav-item">Policy Analyzer</div>
+
+  <div class="nav-section">Prisma SD-WAN</div>
+  <div class="nav-item">Branch Sites</div>
+  <div class="nav-item">Data Centers</div>
+  <div class="nav-item">ION Devices</div>
+  <div class="nav-item">Policies</div>
+  <div class="nav-item">Resources</div>
+  <div class="nav-item active" id="nav-cloudblades" onclick="showPage('tiles')">CloudBlades</div>
+  <div class="nav-item">Profiles and Templates</div>
+  <div class="nav-item">System</div>
+  <div class="nav-item">App Acceleration</div>
+</nav>
+
+<!-- ── Main ──────────────────────────────────────────────────────────────── -->
+<div id="main">
+
+  <!-- Topbar -->
+  <div id="topbar">
+    <div class="breadcrumb">
+      <span class="crumb-link" onclick="showPage('tiles')">Prisma SD-WAN</span>
+      <span class="sep">/</span>
+      <span class="crumb-link" onclick="showPage('tiles')" id="bc1">CloudBlades</span>
+      <span class="sep" id="bc-sep2" style="display:none;">/</span>
+      <span class="crumb-link" id="bc2" style="display:none;"></span>
+      <span class="sep" id="bc-sep3" style="display:none;">/</span>
+      <span class="current" id="bc3" style="display:none;"></span>
+    </div>
+    <div class="topbar-right">
+      <div class="tenant-pill" id="tenant-pill" style="display:none;">
+        <i class="fa-solid fa-building" style="font-size:10px;"></i>
+        <span id="tenant-name"></span>
+      </div>
+      <button class="btn btn-default" onclick="showPage('settings')" id="btn-connect"
+              style="font-size:12px;padding:4px 12px;">
+        <i class="fa-solid fa-plug"></i> Connect
+      </button>
+      <button class="btn btn-default" onclick="doLogout()" id="btn-disconnect"
+              style="display:none;font-size:12px;padding:4px 12px;">
+        <i class="fa-solid fa-right-from-bracket"></i> Disconnect
+      </button>
+    </div>
+  </div>
+
+  <div id="content">
+
+    <!-- ════════ CLOUDBLADES TILE GALLERY ════════ -->
+    <div class="page active" id="page-tiles">
+      <div class="page-headline">
+        <i class="fa-solid fa-cloud"></i>
+        <h1>CloudBlades</h1>
+      </div>
+
+      <div class="tiles-grid">
+
+        <!-- Fabric Topology tile -->
+        <div class="tile">
+          <div class="tile-body">
+            <div class="tile-header">
+              <div class="tile-icon"
+                   style="background:linear-gradient(140deg,#FA582D 0%,#ff9158 100%);color:#fff;">
+                <i class="fa-solid fa-diagram-project"></i>
+              </div>
+              <div class="tile-header-text">
+                <div class="tile-name">Fabric Topology</div>
+                <div class="tile-vendor-inline">Palo Alto Networks</div>
+              </div>
+              <div class="tile-status-dot" id="tile-dot"></div>
+            </div>
+            <div class="tile-desc">
+              Configure branch-to-branch Full-Mesh and Partial-Mesh VPN topologies across
+              Prisma SD-WAN anynet links with scale guardrails.
+            </div>
+            <div class="tile-meta">
+              <div class="tile-meta-row">
+                Installed Version: <strong>1.0.0</strong>
+              </div>
+              <div class="tile-meta-row">
+                Vendor: <strong>Palo Alto Networks</strong>
+              </div>
+            </div>
+          </div>
+          <div class="tile-actions">
+            <div class="tile-action" onclick="openConfigure()">
+              <i class="fa-solid fa-gear"></i> Configure
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ════════ SETTINGS / CONNECT ════════ -->
+    <div class="page" id="page-settings">
+      <div class="panel-hdr">
+        <div>
+          <div class="panel-title">API Credentials</div>
+          <div class="panel-sub">Prisma SD-WAN service account authentication</div>
+        </div>
+        <button class="btn btn-default" onclick="showPage('tiles')" style="font-size:12px;padding:4px 12px;">
+          <i class="fa-solid fa-arrow-left"></i> Back
+        </button>
+      </div>
+
+      <div class="card" style="max-width:520px;">
+        <div class="card-title">Connect to Prisma SD-WAN</div>
+        <div class="card-sub">Enter your service account credentials. In production (Strata Cloud Manager), these are provided automatically.</div>
+        <div id="settings-alert" style="display:none;"></div>
+        <div class="form-group">
+          <label class="form-label">Tenant ID (TSG ID)</label>
+          <input class="form-input" type="text" id="inp-tenant" placeholder="1234567890" />
+          <div class="form-hint">Your Prisma SASE Tenant Services Group (TSG) ID</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Client ID</label>
+          <input class="form-input" type="text" id="inp-client"
+                 placeholder="service-account@1234.iam.paloaltonetworks.com" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Client Secret</label>
+          <input class="form-input" type="password" id="inp-secret" placeholder="••••••••••••••" />
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-primary" onclick="doConnect()" id="btn-conn">
+            <i class="fa-solid fa-plug"></i> Connect
+          </button>
+          <button class="btn btn-danger" onclick="doLogout()" id="btn-disc" style="display:none;">
+            <i class="fa-solid fa-right-from-bracket"></i> Disconnect
+          </button>
+        </div>
+      </div>
+
+      <div class="card" style="max-width:520px;">
+        <div class="card-title">Advanced — API Endpoints</div>
+        <div class="card-sub">Override defaults if needed.</div>
+        <div class="form-group">
+          <label class="form-label">Auth URL</label>
+          <input class="form-input" type="text" id="inp-auth-url"
+                 value="https://auth.apps.paloaltonetworks.com/oauth2/access_token" />
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">API Host</label>
+          <input class="form-input" type="text" id="inp-api-base"
+                 value="https://api.sase.paloaltonetworks.com" />
+          <div class="form-hint">Host only — path and version set automatically per endpoint.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════ MONITOR ════════ -->
+    <div class="page" id="page-monitor">
+      <div class="panel-hdr">
+        <div>
+          <div class="panel-title">Fabric Topology — Monitor</div>
+          <div class="panel-sub">Current branch-to-branch anynet links</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-default" onclick="loadMonitor()" style="font-size:12px;padding:4px 12px;">
+            <i class="fa-solid fa-rotate"></i> Refresh
+          </button>
+          <button class="btn btn-danger" onclick="confirmRemoveMesh()"
+                  id="btn-remove" style="display:none;font-size:12px;padding:4px 12px;">
+            <i class="fa-solid fa-trash"></i> Remove Mesh Links
+          </button>
+          <button class="btn btn-default" onclick="showPage('tiles')" style="font-size:12px;padding:4px 12px;">
+            <i class="fa-solid fa-arrow-left"></i> Back
+          </button>
+        </div>
+      </div>
+
+      <div id="mon-loading" style="text-align:center;padding:48px;">
+        <span class="spinner"></span>
+        <p style="margin-top:10px;font-size:12px;color:var(--text-muted);">Loading topology…</p>
+      </div>
+      <div id="mon-error" style="display:none;"></div>
+      <div id="mon-content" style="display:none;">
+        <div class="stats-grid" style="max-width:600px;">
+          <div class="stat-card"><div class="num" id="mon-sites">—</div><div class="label">Total Sites</div></div>
+          <div class="stat-card"><div class="num" id="mon-branches">—</div><div class="label">Branch Sites</div></div>
+          <div class="stat-card"><div class="num" id="mon-domains">—</div><div class="label">Domains</div></div>
+          <div class="stat-card"><div class="num" id="mon-links">—</div><div class="label">Anynet Links</div></div>
+        </div>
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div class="table-wrap" style="border:none;max-height:520px;">
+            <table>
+              <thead><tr>
+                <th>Site A</th><th>WAN Interface A</th>
+                <th>Site B</th><th>WAN Interface B</th>
+                <th>Type</th><th>Status</th>
+              </tr></thead>
+              <tbody id="mon-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════ CONFIGURE (mesh wizard) ════════ -->
+    <div class="page" id="page-configure">
+      <div class="panel-hdr">
+        <div>
+          <div class="panel-title">Fabric Topology — Configure</div>
+          <div class="panel-sub">Create and manage branch-to-branch VPN mesh links</div>
+        </div>
+        <button class="btn btn-default" onclick="showPage('tiles')" style="font-size:12px;padding:4px 12px;">
+          <i class="fa-solid fa-arrow-left"></i> Back to CloudBlades
+        </button>
+      </div>
+
+      <!-- Not authenticated -->
+      <div id="cfg-noauth" style="display:none;">
+        <div class="alert alert-warning">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <span>Not connected to Prisma SD-WAN.
+            <strong style="cursor:pointer;margin-left:4px;" onclick="showPage('settings')">
+              Configure credentials →
+            </strong>
+          </span>
+        </div>
+      </div>
+
+      <!-- Wizard (shown when authenticated) -->
+      <div id="cfg-wizard" style="display:none;">
+
+        <div class="steps">
+          <div class="step-item active" id="si1"><div class="step-num" id="sn1">1</div><div class="step-label">Select Domains</div></div>
+          <div class="step-sep"></div>
+          <div class="step-item" id="si2"><div class="step-num" id="sn2">2</div><div class="step-label">Preview Links</div></div>
+          <div class="step-sep"></div>
+          <div class="step-item" id="si3"><div class="step-num" id="sn3">3</div><div class="step-label">Apply</div></div>
+        </div>
+
+        <!-- Step 1 -->
+        <div id="s1">
+          <div class="card">
+            <div class="card-title">Select Domains for Full Mesh</div>
+            <div class="card-sub">Select domains whose branch sites will be fully meshed with branch-to-branch anynet links across all selected domains.</div>
+            <div id="s1-loading" style="text-align:center;padding:28px;">
+              <span class="spinner"></span>
+              <p style="margin-top:8px;color:var(--text-muted);font-size:12px;">Loading domains…</p>
+            </div>
+            <div id="s1-error" style="display:none;"></div>
+            <div id="s1-content" style="display:none;">
+              <div class="domain-grid" id="domain-grid"></div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <button class="btn btn-default" onclick="selAll()" style="font-size:12px;padding:4px 12px;">Select All</button>
+                <button class="btn btn-default" onclick="selNone()" style="font-size:12px;padding:4px 12px;">Clear</button>
+                <span id="sel-count" style="font-size:12px;color:var(--text-muted);margin-left:4px;"></span>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:flex-end;">
+            <button class="btn btn-primary" onclick="toStep2()">
+              Preview Links <i class="fa-solid fa-arrow-right"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div id="s2" style="display:none;">
+          <div class="card">
+            <div class="card-title">Preview — Links to Create</div>
+            <div class="card-sub" id="s2-sub">Computing required anynet links…</div>
+            <div id="s2-loading" style="text-align:center;padding:28px;">
+              <span class="spinner"></span>
+              <p style="margin-top:8px;color:var(--text-muted);font-size:12px;">Analyzing topology…</p>
+            </div>
+            <div id="s2-content" style="display:none;">
+              <div class="stats-grid" id="s2-stats"></div>
+              <div id="s2-alert" style="display:none;"></div>
+              <div id="s2-scale-warn" style="display:none;"></div>
+              <div class="table-wrap" id="s2-table" style="display:none;">
+                <table>
+                  <thead><tr>
+                    <th>Domain</th><th>Site A</th><th>WAN If A</th>
+                    <th>Site B</th><th>WAN If B</th>
+                    <th>Type</th>
+                  </tr></thead>
+                  <tbody id="s2-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;justify-content:space-between;">
+            <button class="btn btn-default" onclick="toStep1()"><i class="fa-solid fa-arrow-left"></i> Back</button>
+            <button class="btn btn-primary" onclick="toStep3()" id="btn-apply" disabled>
+              <i class="fa-solid fa-bolt"></i> Apply Mesh
+            </button>
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div id="s3" style="display:none;">
+          <div class="card">
+            <div class="card-title">Applying Mesh Configuration</div>
+            <div class="card-sub" id="s3-sub">Creating branch-to-branch VPN links…</div>
+            <div class="progress-wrap">
+              <div class="progress-label">
+                <span id="prog-text">Initializing…</span>
+                <span id="prog-pct">0%</span>
+              </div>
+              <div class="progress-bar"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+            </div>
+            <div class="progress-log" id="apply-log"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:14px;">
+            <button class="btn btn-default" onclick="resetMesh()" id="btn-done" style="display:none;">
+              <i class="fa-solid fa-rotate-left"></i> Configure Another
+            </button>
+            <button class="btn btn-primary" onclick="goToMonitor()" id="btn-view" style="display:none;margin-left:auto;">
+              <i class="fa-solid fa-eye"></i> View Topology
+            </button>
+          </div>
+        </div>
+
+      </div><!-- /cfg-wizard -->
+    </div><!-- /page-configure -->
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+const S = {
+  sessionId:      null,
+  tenantId:       null,
+  sites:          null,
+  domains:        null,
+  topology:       null,
+  selectedDomains: new Set(),
+  previewLinks:   [],
+  scaleWarnings:  [],
+};
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function toast(msg, type = 'error') {
+  const icons = { error: 'circle-xmark', success: 'circle-check', info: 'circle-info' };
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.innerHTML = `<i class="fa-solid fa-${icons[type]||'circle-info'}" style="flex-shrink:0;margin-top:1px;"></i><span>${msg}</span>`;
+  document.getElementById('toast-wrap').appendChild(el);
+  setTimeout(() => el.remove(), 6000);
+}
+
+// ── API ───────────────────────────────────────────────────────────────────────
+async function api(path, body = {}) {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
+  return data;
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+
+  // Breadcrumb
+  const bc2 = document.getElementById('bc2');
+  const bc3 = document.getElementById('bc3');
+  const sep2 = document.getElementById('bc-sep2');
+  const sep3 = document.getElementById('bc-sep3');
+
+  const labels = { tiles: null, settings: 'Settings', monitor: 'Fabric Topology', configure: 'Fabric Topology' };
+  const sub3   = { monitor: 'Monitor', configure: 'Configure' };
+
+  if (name === 'tiles') {
+    sep2.style.display = sep3.style.display = 'none';
+    bc2.style.display  = bc3.style.display  = 'none';
+  } else if (name === 'settings') {
+    sep2.style.display = ''; bc2.style.display = '';
+    sep3.style.display = 'none'; bc3.style.display = 'none';
+    bc2.textContent = 'Settings'; bc2.onclick = null; bc2.className = 'current';
+  } else if (sub3[name]) {
+    sep2.style.display = ''; bc2.style.display = '';
+    sep3.style.display = ''; bc3.style.display = '';
+    bc2.textContent = 'Fabric Topology';
+    bc2.className = 'crumb-link';
+    bc2.onclick = () => showPage('tiles');
+    bc3.textContent = sub3[name];
+  }
+
+  if (name === 'tiles')     { initTiles(); }
+  if (name === 'monitor')   { loadMonitor(); }
+  if (name === 'configure') { initConfigure(); }
+}
+
+function setAlert(el, type, msg) {
+  const icons = { error:'circle-xmark', info:'circle-info', success:'circle-check', warning:'triangle-exclamation' };
+  el.className = `alert alert-${type}`;
+  el.innerHTML = `<i class="fa-solid fa-${icons[type]}"></i><span>${msg}</span>`;
+  el.style.display = '';
+}
+
+function show(id) { const el = document.getElementById(id); if (el) el.style.display = ''; }
+function hide(id) { const el = document.getElementById(id); if (el) el.style.display = 'none'; }
+
+// ── Connection state ──────────────────────────────────────────────────────────
+function setConnected(yes, label) {
+  document.getElementById('tile-dot').classList.toggle('active', yes);
+  document.getElementById('tenant-pill').style.display  = yes ? 'flex' : 'none';
+  document.getElementById('tenant-name').textContent    = label || '';
+  document.getElementById('btn-connect').style.display    = yes ? 'none' : '';
+  document.getElementById('btn-disconnect').style.display = yes ? ''     : 'none';
+  document.getElementById('btn-conn').style.display = yes ? 'none' : '';
+  document.getElementById('btn-disc').style.display = yes ? ''     : 'none';
+}
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+async function doConnect() {
+  const tenant  = document.getElementById('inp-tenant').value.trim();
+  const client  = document.getElementById('inp-client').value.trim();
+  const secret  = document.getElementById('inp-secret').value.trim();
+  const authUrl = document.getElementById('inp-auth-url').value.trim();
+  const apiBase = document.getElementById('inp-api-base').value.trim();
+  const alertEl = document.getElementById('settings-alert');
+  alertEl.style.display = 'none';
+
+  if (!tenant || !client || !secret) {
+    setAlert(alertEl, 'error', 'Please fill in Tenant ID, Client ID, and Client Secret.');
+    return;
+  }
+
+  const btn = document.getElementById('btn-conn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Connecting…';
+
+  try {
+    const data = await api('/api/authenticate', {
+      tenant_id: tenant, client_id: client, client_secret: secret,
+      auth_url: authUrl, api_host: apiBase,
+    });
+    S.sessionId = data.session_id;
+    S.tenantId  = data.tenant_id;
+    S.sites = S.domains = S.topology = null;
+    setConnected(true, tenant);
+    setAlert(alertEl, 'success', 'Connected successfully.');
+    setTimeout(() => showPage('tiles'), 900);
+  } catch (err) {
+    setAlert(alertEl, 'error', err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-plug"></i> Connect';
+  }
+}
+
+function doLogout() {
+  S.sessionId = S.tenantId = null;
+  S.sites = S.domains = S.topology = null;
+  S.selectedDomains.clear();
+  S.previewLinks = []; S.scaleWarnings = [];
+  setConnected(false);
+  showPage('settings');
+}
+
+// ── Tile gallery init ─────────────────────────────────────────────────────────
+function initTiles() {
+  // Nothing async needed — tile state already reflects connection status.
+}
+
+function openMonitor() {
+  if (!S.sessionId) { toast('Connect to Prisma SD-WAN first.', 'info'); showPage('settings'); return; }
+  showPage('monitor');
+}
+
+function openConfigure() {
+  if (!S.sessionId) { toast('Connect to Prisma SD-WAN first.', 'info'); showPage('settings'); return; }
+  showPage('configure');
+}
+
+// ── Monitor ───────────────────────────────────────────────────────────────────
+async function loadMonitor() {
+  if (!S.sessionId) return;
+  hide('mon-content'); hide('mon-error');
+  show('mon-loading');
+
+  try {
+    const [sites, domains, topology] = await Promise.all([
+      api('/api/sites',    { session_id: S.sessionId }),
+      api('/api/domains',  { session_id: S.sessionId }),
+      api('/api/topology', { session_id: S.sessionId }),
+    ]);
+    S.sites = sites; S.domains = domains; S.topology = topology;
+
+    const branches = sites.filter(s => s.element_cluster_role === 'SPOKE');
+    document.getElementById('mon-sites').textContent    = sites.length;
+    document.getElementById('mon-branches').textContent = branches.length;
+    document.getElementById('mon-domains').textContent  = domains.length;
+    document.getElementById('mon-links').textContent    = topology.length;
+
+    renderMonitorTable(topology, sites);
+    hide('mon-loading');
+    show('mon-content');
+
+    const removable = topology.filter(l => (l.sub_type || '') === 'on-demand');
+    document.getElementById('btn-remove').style.display = removable.length ? '' : 'none';
+  } catch (err) {
+    hide('mon-loading');
+    const errEl = document.getElementById('mon-error');
+    setAlert(errEl, 'error', `Failed to load topology: ${err.message}`);
+    toast(err.message, 'error');
+  }
+}
+
+function renderMonitorTable(links, sites) {
+  const siteMap = {};
+  sites.forEach(s => { siteMap[s.id] = s.name; });
+  const tbody = document.getElementById('mon-tbody');
+  if (!links.length) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted);">
+      No anynet links found. Use <strong>Configure</strong> to create a mesh.
+    </td></tr>`;
+    return;
+  }
+  tbody.innerHTML = links.map(l => {
+    const type = l.sub_type || l.wan_type || '—';
+    const status = l.path_status || '—';
+    return `<tr>
+      <td style="font-weight:500;">${siteMap[l.source_site_id] || l.source_site_id || '—'}</td>
+      <td style="font-size:11px;color:var(--text-muted);font-family:monospace;">${l.ep1_wan_if_id || '—'}</td>
+      <td style="font-weight:500;">${siteMap[l.target_site_id] || l.target_site_id || '—'}</td>
+      <td style="font-size:11px;color:var(--text-muted);font-family:monospace;">${l.ep2_wan_if_id || '—'}</td>
+      <td><span class="wan-badge ${type==='publicwan'?'wan-public':type==='privatewan'?'wan-private':''}">${type}</span></td>
+      <td style="font-size:11px;">${status}</td>
+    </tr>`;
+  }).join('');
+}
+
+function confirmRemoveMesh() {
+  if (!S.topology) return;
+  const removable = S.topology.filter(l => (l.sub_type || '') === 'on-demand');
+  if (!removable.length) { toast('No removable mesh links found.', 'info'); return; }
+  if (!confirm(`Remove ${removable.length} branch-to-branch mesh links?\nThis cannot be undone.`)) return;
+  doRemoveMesh(removable.map(l => l.id));
+}
+
+async function doRemoveMesh(ids) {
+  const btn = document.getElementById('btn-remove');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Removing…';
+  try {
+    const res = await fetch('/api/mesh/remove', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: S.sessionId, anynet_ids: ids }),
+    });
+    await drainSSE(res, () => {});
+    toast(`Removed ${ids.length} links`, 'success');
+    S.topology = null;
+    loadMonitor();
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fa-solid fa-trash"></i> Remove Mesh Links';
+  }
+}
+
+// ── Configure / Mesh wizard ───────────────────────────────────────────────────
+function initConfigure() {
+  if (!S.sessionId) {
+    show('cfg-noauth');
+    hide('cfg-wizard');
+    return;
+  }
+  hide('cfg-noauth');
+  show('cfg-wizard');
+  toStep1(false);
+}
+
+async function toStep1(force = false) {
+  setStepUI(1);
+  show('s1'); hide('s2'); hide('s3');
+
+  if (!force && S.sites && S.domains) {
+    renderDomainCards(S.sites, S.domains);
+    hide('s1-loading');
+    document.getElementById('s1-error').style.display = 'none';
+    show('s1-content');
+    return;
+  }
+
+  show('s1-loading');
+  hide('s1-content');
+  document.getElementById('s1-error').style.display = 'none';
+
+  try {
+    const [sites, domains] = await Promise.all([
+      S.sites   ? Promise.resolve(S.sites)   : api('/api/sites',   { session_id: S.sessionId }),
+      S.domains ? Promise.resolve(S.domains) : api('/api/domains', { session_id: S.sessionId }),
+    ]);
+    S.sites = sites; S.domains = domains;
+    renderDomainCards(sites, domains);
+    hide('s1-loading');
+    show('s1-content');
+  } catch (err) {
+    hide('s1-loading');
+    const errEl = document.getElementById('s1-error');
+    setAlert(errEl, 'error', `Failed to load domains: ${err.message}`);
+    toast(err.message, 'error');
+  }
+}
+
+function renderDomainCards(sites, domains) {
+  const siteCount  = {};
+  const branchCount = {};
+  sites.forEach(s => {
+    const d = s.service_binding;
+    if (!d) return;
+    siteCount[d]  = (siteCount[d]  || 0) + 1;
+    if (s.element_cluster_role === 'SPOKE')
+      branchCount[d] = (branchCount[d] || 0) + 1;
+  });
+
+  const unbound = sites.filter(s => !s.service_binding);
+  const list = [...domains];
+  if (unbound.length) {
+    list.push({ id: '__none__', name: 'No Domain Assigned' });
+    siteCount['__none__']  = unbound.length;
+    branchCount['__none__'] = unbound.filter(s => s.element_cluster_role === 'SPOKE').length;
+  }
+
+  if (!list.length) {
+    document.getElementById('domain-grid').innerHTML =
+      `<div style="color:var(--text-muted);font-size:13px;">No domains found in this tenant.</div>`;
+    updateSelCount();
+    return;
+  }
+
+  document.getElementById('domain-grid').innerHTML = list.map(d => `
+    <div class="domain-card ${S.selectedDomains.has(d.id)?'selected':''}" id="dc-${d.id}"
+         onclick="toggleDomain('${d.id}')">
+      <div class="domain-check"></div>
+      <div class="domain-name">${d.name || d.id}</div>
+      <div class="domain-meta">
+        <span>${siteCount[d.id] || 0} total sites</span>
+        <div class="domain-pill">
+          <i class="fa-solid fa-code-branch" style="font-size:9px;color:var(--accent);"></i>
+          ${branchCount[d.id] || 0} branch sites
+        </div>
+      </div>
+    </div>`).join('');
+  updateSelCount();
+}
+
+function toggleDomain(id) {
+  S.selectedDomains.has(id) ? S.selectedDomains.delete(id) : S.selectedDomains.add(id);
+  document.querySelectorAll('.domain-card').forEach(el => {
+    const did = el.id.replace('dc-', '');
+    el.classList.toggle('selected', S.selectedDomains.has(did));
+  });
+  updateSelCount();
+}
+function selAll()  { document.querySelectorAll('.domain-card').forEach(el => { S.selectedDomains.add(el.id.replace('dc-','')); el.classList.add('selected'); }); updateSelCount(); }
+function selNone() { S.selectedDomains.clear(); document.querySelectorAll('.domain-card').forEach(el => el.classList.remove('selected')); updateSelCount(); }
+function updateSelCount() {
+  const n = S.selectedDomains.size;
+  document.getElementById('sel-count').textContent = n ? `${n} domain${n>1?'s':''} selected` : 'No domains selected';
+}
+
+async function toStep2() {
+  if (!S.selectedDomains.size) { toast('Select at least one domain.', 'info'); return; }
+  setStepUI(2);
+  hide('s1'); show('s2');
+  show('s2-loading'); hide('s2-content');
+  document.getElementById('btn-apply').disabled = true;
+
+  try {
+    const data = await api('/api/mesh/preview', {
+      session_id: S.sessionId,
+      domain_ids: [...S.selectedDomains],
+    });
+    S.previewLinks  = data.new_links  || [];
+    S.scaleWarnings = data.warnings   || [];
+    renderPreview(data);
+  } catch (err) {
+    document.getElementById('s2-loading').innerHTML =
+      `<div class="alert alert-error"><i class="fa-solid fa-circle-xmark"></i> ${err.message}</div>`;
+    toast(err.message, 'error');
+  }
+}
+
+function renderPreview(data) {
+  hide('s2-loading'); show('s2-content');
+  const s = data.summary || {};
+
+  document.getElementById('s2-stats').innerHTML = `
+    <div class="stat-card"><div class="num" style="color:var(--accent);">${s.total_new||0}</div><div class="label">New Links</div></div>
+    <div class="stat-card"><div class="num" style="color:#003eb3;">${s.public_wan||0}</div><div class="label">Internet VPN</div></div>
+    <div class="stat-card"><div class="num" style="color:#531dab;">${s.private_wan||0}</div><div class="label">Private VPN</div></div>
+    <div class="stat-card"><div class="num" style="color:var(--text-muted);">${data.existing_count||0}</div><div class="label">Already Exist</div></div>
+    <div class="stat-card"><div class="num">${s.sites_included||0}</div><div class="label">Sites Included</div></div>`;
+
+  const alertEl = document.getElementById('s2-alert');
+
+  if (!S.previewLinks.length) {
+    setAlert(alertEl, 'success', 'All possible mesh links already exist. No changes needed.');
+    hide('s2-table'); hide('s2-scale-warn');
+    document.getElementById('s2-sub').textContent = 'No new links to create.';
+    document.getElementById('btn-apply').disabled = true;
+    return;
+  }
+  alertEl.style.display = 'none';
+  document.getElementById('s2-sub').textContent =
+    `${S.previewLinks.length} new anynet links will be created across ${s.domains_included} domain(s).`;
+
+  // Scale warnings
+  const warnEl = document.getElementById('s2-scale-warn');
+  if (S.scaleWarnings.length) {
+    const rows = S.scaleWarnings.map(w =>
+      `<li style="margin:4px 0 4px 16px;">
+        <strong>${w.site_name}</strong>
+        <span style="color:var(--text-muted);font-size:11px;margin-left:5px;">${w.model} · ${w.role}</span>
+        — <strong style="color:#d4380d;">${w.total_links} tunnels</strong>
+        <span style="font-size:11px;color:var(--text-2);"> (${w.existing_links} existing + ${w.new_links} new &gt; ${w.limit} limit)</span>
+      </li>`
+    ).join('');
+    warnEl.innerHTML = `
+      <div class="alert alert-warning" style="align-items:flex-start;">
+        <i class="fa-solid fa-triangle-exclamation" style="margin-top:3px;flex-shrink:0;"></i>
+        <div style="flex:1;">
+          <strong>Scale limit exceeded on ${S.scaleWarnings.length} site${S.scaleWarnings.length>1?'s':''}.</strong>
+          Applying this mesh will push these ION devices beyond their VPN tunnel capacity
+          (Field Sizing Guide 6.5.1 practical limits):
+          <ul style="margin:8px 0 10px 0;padding:0;list-style:disc;">${rows}</ul>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;">
+            <input type="checkbox" id="ack-scale" onchange="onAckScale()">
+            I acknowledge the scale risks and want to proceed anyway
+          </label>
+        </div>
+      </div>`;
+    warnEl.style.display = '';
+    document.getElementById('btn-apply').disabled = true;
+  } else {
+    warnEl.style.display = 'none';
+    document.getElementById('btn-apply').disabled = false;
+  }
+
+  document.getElementById('s2-tbody').innerHTML = S.previewLinks.map(l => {
+    const domain = (l.ep1_domain && l.ep2_domain && l.ep1_domain !== l.ep2_domain)
+      ? `${l.ep1_domain} → ${l.ep2_domain}`
+      : (l.ep1_domain || l.ep2_domain || '—');
+    return `<tr>
+      <td style="font-size:11px;color:var(--text-muted);">${domain}</td>
+      <td style="font-weight:500;">${l.ep1_site_name}</td>
+      <td style="font-size:11px;color:var(--text-muted);">${l.ep1_wan_if_name} (${l.ep1_wan_network})</td>
+      <td style="font-weight:500;">${l.ep2_site_name}</td>
+      <td style="font-size:11px;color:var(--text-muted);">${l.ep2_wan_if_name} (${l.ep2_wan_network})</td>
+      <td><span class="wan-badge ${l.wan_type==='publicwan'?'wan-public':'wan-private'}">${l.wan_type==='publicwan'?'Internet':'Private'}</span></td>
+    </tr>`;
+  }).join('');
+  show('s2-table');
+}
+
+function onAckScale() {
+  const ack = document.getElementById('ack-scale');
+  document.getElementById('btn-apply').disabled = !ack.checked;
+}
+
+async function toStep3() {
+  if (!S.previewLinks.length) return;
+  setStepUI(3);
+  hide('s2'); show('s3');
+  hide('btn-done'); hide('btn-view');
+  document.getElementById('s3-sub').textContent = `Creating ${S.previewLinks.length} VPN links…`;
+
+  const log  = document.getElementById('apply-log');
+  const fill = document.getElementById('prog-fill');
+  log.innerHTML = '';
+
+  const res = await fetch('/api/mesh/apply', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_id: S.sessionId, links: S.previewLinks }),
+  });
+
+  await drainSSE(res, evt => {
+    if (evt.done) {
+      document.getElementById('prog-text').textContent = `Done — ${evt.success} created, ${evt.failed} failed`;
+      fill.style.width = '100%';
+      document.getElementById('prog-pct').textContent = '100%';
+      document.getElementById('s3-sub').textContent   = `Completed: ${evt.success} created, ${evt.failed} failed`;
+      show('btn-done'); show('btn-view');
+      S.topology = null;
+    } else {
+      const pct = Math.round((evt.index / evt.total) * 100);
+      fill.style.width = pct + '%';
+      document.getElementById('prog-pct').textContent  = pct + '%';
+      document.getElementById('prog-text').textContent = `${evt.index} / ${evt.total} — ${evt.link || ''}`;
+      log.innerHTML += `<div class="${evt.status==='ok'?'log-ok':'log-error'}">${evt.status==='ok'?'✓':'✗'} ${evt.link || evt.detail}</div>`;
+      log.scrollTop = log.scrollHeight;
+    }
+  });
+}
+
+function goToMonitor() {
+  S.topology = null;
+  showPage('monitor');
+}
+
+function resetMesh() {
+  S.previewLinks = [];
+  S.scaleWarnings = [];
+  S.selectedDomains.clear();
+  toStep1(true);
+}
+
+// ── SSE drain ─────────────────────────────────────────────────────────────────
+async function drainSSE(res, onEvent) {
+  const reader  = res.body.getReader();
+  const decoder = new TextDecoder();
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    const lines = decoder.decode(value).split('\n').filter(l => l.startsWith('data:'));
+    for (const line of lines) {
+      try { onEvent(JSON.parse(line.slice(5))); } catch {}
+    }
+  }
+}
+
+// ── Step UI ───────────────────────────────────────────────────────────────────
+function setStepUI(n) {
+  for (let i = 1; i <= 3; i++) {
+    const item = document.getElementById(`si${i}`);
+    const num  = document.getElementById(`sn${i}`);
+    item.classList.remove('active', 'done');
+    if (i < n)      { item.classList.add('done');   num.textContent = '✓'; }
+    else if (i===n) { item.classList.add('active'); num.textContent = i;  }
+    else            {                               num.textContent = i;  }
+  }
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+showPage('tiles');
+</script>
+</body>
+</html>
