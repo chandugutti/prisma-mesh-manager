@@ -253,6 +253,15 @@ body {
 }
 .stat-card .num   { font-size: 26px; font-weight: 700; color: var(--accent); line-height: 1; }
 .stat-card .label { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.tile-tab { cursor: pointer; transition: border-color .15s, background .15s, box-shadow .15s; }
+.tile-tab:hover:not(.active) { border-color: var(--accent); }
+.tile-tab.active { border-color: var(--accent); background: #e6f4ff; box-shadow: 0 0 0 1px var(--accent); }
+.th-src { background: #eaf4ff; }
+.th-dst { background: #f5eeff; border-left: 2px solid #c4a8f0; }
+.td-src { background: rgba(24,144,255,0.03); }
+.td-dst { background: rgba(114,46,209,0.03); border-left: 2px solid #f0e8ff; }
+.filter-row .th-src { background: #deeeff; }
+.filter-row .th-dst { background: #ece4ff; }
 
 /* ── Domain cards ────────────────────────────────────────────────────────── */
 .domain-grid {
@@ -281,17 +290,29 @@ body {
 }
 
 /* ── Table ───────────────────────────────────────────────────────────────── */
-.table-wrap { max-height: 420px; overflow-y: auto; border: 1px solid var(--border-light); border-radius: 4px; }
+.table-wrap { max-height: 460px; overflow-y: auto; border: 1px solid var(--border-light); border-radius: 4px; }
 table { width: 100%; border-collapse: collapse; }
 th {
   background: #fafafa; text-align: left; padding: 9px 12px;
   font-size: 11px; font-weight: 700; color: var(--text-muted);
   text-transform: uppercase; letter-spacing: .05em;
-  position: sticky; top: 0; border-bottom: 1px solid var(--border-light);
+  position: sticky; top: 0; border-bottom: 1px solid var(--border-light); z-index: 2;
 }
+.filter-row th {
+  background: #f0f2f5; padding: 5px 8px; top: 38px;
+  border-bottom: 1px solid var(--border-light);
+}
+.filter-input {
+  width: 100%; padding: 3px 7px; border: 1px solid var(--border);
+  border-radius: 3px; font-size: 11px; background: #fff;
+  color: var(--text); font-family: inherit; font-weight: 400;
+  text-transform: none; letter-spacing: 0;
+}
+.filter-input:focus { outline: none; border-color: var(--accent); }
 td { padding: 8px 12px; border-bottom: 1px solid var(--border-light); font-size: 12px; }
 tr:last-child td { border-bottom: none; }
 tr:hover td { background: #fafafa; }
+.row-check, .chk-all { cursor: pointer; width: 14px; height: 14px; accent-color: var(--accent); }
 .wan-badge { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; font-weight: 600; border-radius: 3px; padding: 2px 6px; }
 .wan-public  { background: #e6f4ff; color: #003eb3; }
 .wan-private { background: #f9f0ff; color: #531dab; }
@@ -532,53 +553,6 @@ tr:hover td { background: #fafafa; }
       </div>
     </div>
 
-    <!-- ════════ MONITOR ════════ -->
-    <div class="page" id="page-monitor">
-      <div class="panel-hdr">
-        <div>
-          <div class="panel-title">Fabric Topology — Monitor</div>
-          <div class="panel-sub">Current branch-to-branch anynet links</div>
-        </div>
-        <div style="display:flex;gap:8px;">
-          <button class="btn btn-default" onclick="loadMonitor()" style="font-size:12px;padding:4px 12px;">
-            <i class="fa-solid fa-rotate"></i> Refresh
-          </button>
-          <button class="btn btn-danger" onclick="confirmRemoveMesh()"
-                  id="btn-remove" style="display:none;font-size:12px;padding:4px 12px;">
-            <i class="fa-solid fa-trash"></i> Remove Mesh Links
-          </button>
-          <button class="btn btn-default" onclick="showPage('tiles')" style="font-size:12px;padding:4px 12px;">
-            <i class="fa-solid fa-arrow-left"></i> Back
-          </button>
-        </div>
-      </div>
-
-      <div id="mon-loading" style="text-align:center;padding:48px;">
-        <span class="spinner"></span>
-        <p style="margin-top:10px;font-size:12px;color:var(--text-muted);">Loading topology…</p>
-      </div>
-      <div id="mon-error" style="display:none;"></div>
-      <div id="mon-content" style="display:none;">
-        <div class="stats-grid" style="max-width:600px;">
-          <div class="stat-card"><div class="num" id="mon-sites">—</div><div class="label">Total Sites</div></div>
-          <div class="stat-card"><div class="num" id="mon-branches">—</div><div class="label">Branch Sites</div></div>
-          <div class="stat-card"><div class="num" id="mon-domains">—</div><div class="label">Domains</div></div>
-          <div class="stat-card"><div class="num" id="mon-links">—</div><div class="label">Anynet Links</div></div>
-        </div>
-        <div class="card" style="padding:0;overflow:hidden;">
-          <div class="table-wrap" style="border:none;max-height:520px;">
-            <table>
-              <thead><tr>
-                <th>Site A</th><th>WAN Interface A</th>
-                <th>Site B</th><th>WAN Interface B</th>
-                <th>Type</th><th>Status</th>
-              </tr></thead>
-              <tbody id="mon-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <!-- ════════ CONFIGURE (mesh wizard) ════════ -->
     <div class="page" id="page-configure">
@@ -654,16 +628,21 @@ tr:hover td { background: #fafafa; }
               <div class="stats-grid" id="s2-stats"></div>
               <div id="s2-alert" style="display:none;"></div>
               <div id="s2-scale-warn" style="display:none;"></div>
-              <div class="table-wrap" id="s2-table" style="display:none;">
-                <table>
-                  <thead><tr>
-                    <th>Domain</th><th>Site A</th><th>WAN If A</th>
-                    <th>Site B</th><th>WAN If B</th>
-                    <th>Type</th>
-                  </tr></thead>
-                  <tbody id="s2-tbody"></tbody>
-                </table>
+              <!-- selection toolbar -->
+              <div id="s2-sel-bar" style="display:none;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
+                <span id="s2-sel-count" style="font-size:12px;color:var(--text-2);"></span>
+                <button class="btn btn-default" onclick="selectAllLinks()"
+                        style="font-size:11px;padding:3px 10px;">Select All</button>
+                <button class="btn btn-default" onclick="selectNoneLinks()"
+                        style="font-size:11px;padding:3px 10px;">Clear</button>
+                <button class="btn btn-default" onclick="clearFilters()"
+                        style="font-size:11px;padding:3px 10px;margin-left:auto;">
+                  <i class="fa-solid fa-filter-circle-xmark"></i> Clear Filters
+                </button>
               </div>
+              <!-- table built dynamically in renderPreview -->
+              <div class="table-wrap" id="s2-table" style="display:none;"></div>
+              <div class="table-wrap" id="s2-alt-table" style="display:none;"></div>
             </div>
           </div>
           <div style="display:flex;justify-content:space-between;">
@@ -688,13 +667,15 @@ tr:hover td { background: #fafafa; }
             </div>
             <div class="progress-log" id="apply-log"></div>
           </div>
-          <div style="display:flex;justify-content:space-between;margin-top:14px;">
+          <div style="display:flex;justify-content:space-between;gap:8px;margin-top:14px;">
             <button class="btn btn-default" onclick="resetMesh()" id="btn-done" style="display:none;">
               <i class="fa-solid fa-rotate-left"></i> Configure Another
             </button>
-            <button class="btn btn-primary" onclick="goToMonitor()" id="btn-view" style="display:none;margin-left:auto;">
-              <i class="fa-solid fa-eye"></i> View Topology
-            </button>
+            <div style="display:flex;gap:8px;margin-left:auto;">
+              <button class="btn btn-default" onclick="toStep2()" id="btn-back-preview" style="display:none;">
+                <i class="fa-solid fa-arrow-left"></i> Back to Preview
+              </button>
+            </div>
           </div>
         </div>
 
@@ -715,6 +696,7 @@ const S = {
   selectedDomains: new Set(),
   previewLinks:   [],
   scaleWarnings:  [],
+  previewData:    null,
 };
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
@@ -750,8 +732,8 @@ function showPage(name) {
   const sep2 = document.getElementById('bc-sep2');
   const sep3 = document.getElementById('bc-sep3');
 
-  const labels = { tiles: null, settings: 'Settings', monitor: 'Fabric Topology', configure: 'Fabric Topology' };
-  const sub3   = { monitor: 'Monitor', configure: 'Configure' };
+  const labels = { tiles: null, settings: 'Settings', configure: 'Fabric Topology' };
+  const sub3   = { configure: 'Configure' };
 
   if (name === 'tiles') {
     sep2.style.display = sep3.style.display = 'none';
@@ -770,7 +752,6 @@ function showPage(name) {
   }
 
   if (name === 'tiles')     { initTiles(); }
-  if (name === 'monitor')   { loadMonitor(); }
   if (name === 'configure') { initConfigure(); }
 }
 
@@ -837,7 +818,7 @@ function doLogout() {
   S.sessionId = S.tenantId = null;
   S.sites = S.domains = S.topology = null;
   S.selectedDomains.clear();
-  S.previewLinks = []; S.scaleWarnings = [];
+  S.previewLinks = []; S.scaleWarnings = []; S.previewData = null;
   setConnected(false);
   showPage('settings');
 }
@@ -847,102 +828,9 @@ function initTiles() {
   // Nothing async needed — tile state already reflects connection status.
 }
 
-function openMonitor() {
-  if (!S.sessionId) { toast('Connect to Prisma SD-WAN first.', 'info'); showPage('settings'); return; }
-  showPage('monitor');
-}
-
 function openConfigure() {
   if (!S.sessionId) { toast('Connect to Prisma SD-WAN first.', 'info'); showPage('settings'); return; }
   showPage('configure');
-}
-
-// ── Monitor ───────────────────────────────────────────────────────────────────
-async function loadMonitor() {
-  if (!S.sessionId) return;
-  hide('mon-content'); hide('mon-error');
-  show('mon-loading');
-
-  try {
-    const [sites, domains, topology] = await Promise.all([
-      api('/api/sites',    { session_id: S.sessionId }),
-      api('/api/domains',  { session_id: S.sessionId }),
-      api('/api/topology', { session_id: S.sessionId }),
-    ]);
-    S.sites = sites; S.domains = domains; S.topology = topology;
-
-    const branches = sites.filter(s => s.element_cluster_role === 'SPOKE');
-    document.getElementById('mon-sites').textContent    = sites.length;
-    document.getElementById('mon-branches').textContent = branches.length;
-    document.getElementById('mon-domains').textContent  = domains.length;
-    document.getElementById('mon-links').textContent    = topology.length;
-
-    renderMonitorTable(topology, sites);
-    hide('mon-loading');
-    show('mon-content');
-
-    const removable = topology.filter(l => (l.sub_type || '') === 'on-demand');
-    document.getElementById('btn-remove').style.display = removable.length ? '' : 'none';
-  } catch (err) {
-    hide('mon-loading');
-    const errEl = document.getElementById('mon-error');
-    setAlert(errEl, 'error', `Failed to load topology: ${err.message}`);
-    toast(err.message, 'error');
-  }
-}
-
-function renderMonitorTable(links, sites) {
-  const siteMap = {};
-  sites.forEach(s => { siteMap[s.id] = s.name; });
-  const tbody = document.getElementById('mon-tbody');
-  if (!links.length) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--text-muted);">
-      No anynet links found. Use <strong>Configure</strong> to create a mesh.
-    </td></tr>`;
-    return;
-  }
-  tbody.innerHTML = links.map(l => {
-    const type = l.sub_type || l.wan_type || '—';
-    const status = l.path_status || '—';
-    return `<tr>
-      <td style="font-weight:500;">${siteMap[l.source_site_id] || l.source_site_id || '—'}</td>
-      <td style="font-size:11px;color:var(--text-muted);font-family:monospace;">${l.ep1_wan_if_id || '—'}</td>
-      <td style="font-weight:500;">${siteMap[l.target_site_id] || l.target_site_id || '—'}</td>
-      <td style="font-size:11px;color:var(--text-muted);font-family:monospace;">${l.ep2_wan_if_id || '—'}</td>
-      <td><span class="wan-badge ${type==='publicwan'?'wan-public':type==='privatewan'?'wan-private':''}">${type}</span></td>
-      <td style="font-size:11px;">${status}</td>
-    </tr>`;
-  }).join('');
-}
-
-function confirmRemoveMesh() {
-  if (!S.topology) return;
-  const removable = S.topology.filter(l => (l.sub_type || '') === 'on-demand');
-  if (!removable.length) { toast('No removable mesh links found.', 'info'); return; }
-  if (!confirm(`Remove ${removable.length} branch-to-branch mesh links?\nThis cannot be undone.`)) return;
-  doRemoveMesh(removable.map(l => l.id));
-}
-
-async function doRemoveMesh(ids) {
-  const btn = document.getElementById('btn-remove');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Removing…';
-  try {
-    const res = await fetch('/api/mesh/remove', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ session_id: S.sessionId, anynet_ids: ids }),
-    });
-    await drainSSE(res, () => {});
-    toast(`Removed ${ids.length} links`, 'success');
-    S.topology = null;
-    loadMonitor();
-  } catch (err) {
-    toast(err.message, 'error');
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '<i class="fa-solid fa-trash"></i> Remove Mesh Links';
-  }
 }
 
 // ── Configure / Mesh wizard ───────────────────────────────────────────────────
@@ -1070,30 +958,36 @@ async function toStep2() {
 }
 
 function renderPreview(data) {
+  S.previewData = data;
   hide('s2-loading'); show('s2-content');
   const s = data.summary || {};
 
   document.getElementById('s2-stats').innerHTML = `
-    <div class="stat-card"><div class="num" style="color:var(--accent);">${s.total_new||0}</div><div class="label">New Links</div></div>
-    <div class="stat-card"><div class="num" style="color:#003eb3;">${s.public_wan||0}</div><div class="label">Internet VPN</div></div>
-    <div class="stat-card"><div class="num" style="color:#531dab;">${s.private_wan||0}</div><div class="label">Private VPN</div></div>
-    <div class="stat-card"><div class="num" style="color:var(--text-muted);">${data.existing_count||0}</div><div class="label">Already Exist</div></div>
-    <div class="stat-card"><div class="num">${s.sites_included||0}</div><div class="label">Sites Included</div></div>`;
+    <div class="stat-card tile-tab" id="tile-new" onclick="activateTile('new')">
+      <div class="num" style="color:var(--accent);">${s.total_new||0}</div>
+      <div class="label">New Links</div>
+    </div>
+    <div class="stat-card tile-tab" id="tile-internet" onclick="activateTile('internet')">
+      <div class="num" style="color:#003eb3;">${s.public_wan||0}</div>
+      <div class="label">Internet VPN</div>
+    </div>
+    <div class="stat-card tile-tab" id="tile-private" onclick="activateTile('private')">
+      <div class="num" style="color:#531dab;">${s.private_wan||0}</div>
+      <div class="label">Private VPN</div>
+    </div>
+    <div class="stat-card tile-tab" id="tile-existing" onclick="activateTile('existing')">
+      <div class="num" style="color:var(--text-muted);">${data.existing_count||0}</div>
+      <div class="label">Already Exist</div>
+    </div>
+    <div class="stat-card tile-tab" id="tile-sites" onclick="activateTile('sites')">
+      <div class="num">${s.sites_included||0}</div>
+      <div class="label">Sites Included</div>
+    </div>`;
 
-  const alertEl = document.getElementById('s2-alert');
+  document.getElementById('s2-sub').textContent = S.previewLinks.length
+    ? `${S.previewLinks.length} new anynet links will be created across ${s.domains_included} domain(s).`
+    : 'Review existing links or select different domains.';
 
-  if (!S.previewLinks.length) {
-    setAlert(alertEl, 'success', 'All possible mesh links already exist. No changes needed.');
-    hide('s2-table'); hide('s2-scale-warn');
-    document.getElementById('s2-sub').textContent = 'No new links to create.';
-    document.getElementById('btn-apply').disabled = true;
-    return;
-  }
-  alertEl.style.display = 'none';
-  document.getElementById('s2-sub').textContent =
-    `${S.previewLinks.length} new anynet links will be created across ${s.domains_included} domain(s).`;
-
-  // Scale warnings
   const warnEl = document.getElementById('s2-scale-warn');
   if (S.scaleWarnings.length) {
     const rows = S.scaleWarnings.map(w =>
@@ -1119,39 +1013,255 @@ function renderPreview(data) {
         </div>
       </div>`;
     warnEl.style.display = '';
-    document.getElementById('btn-apply').disabled = true;
   } else {
     warnEl.style.display = 'none';
-    document.getElementById('btn-apply').disabled = false;
   }
 
-  document.getElementById('s2-tbody').innerHTML = S.previewLinks.map(l => {
+  renderNewLinksTable(S.previewLinks);
+  activateTile('new');
+}
+
+function activateTile(type) {
+  ['new', 'internet', 'private', 'existing', 'sites'].forEach(t => {
+    const el = document.getElementById(`tile-${t}`);
+    if (el) el.classList.toggle('active', t === type);
+  });
+
+  const alertEl  = document.getElementById('s2-alert');
+  const isNewish = type === 'new' || type === 'internet' || type === 'private';
+
+  if (isNewish) {
+    hide('s2-alt-table');
+    if (!S.previewLinks.length) {
+      setAlert(alertEl, 'success', 'All possible mesh links already exist. No changes needed.');
+      hide('s2-table'); hide('s2-sel-bar');
+      document.getElementById('btn-apply').disabled = true;
+      return;
+    }
+    alertEl.style.display = 'none';
+    show('s2-table'); show('s2-sel-bar');
+    const ft = document.getElementById('f-type');
+    if (ft) ft.value = type === 'internet' ? 'publicwan' : (type === 'private' ? 'privatewan' : '');
+    applyFilters();
+  } else {
+    alertEl.style.display = 'none';
+    hide('s2-table'); hide('s2-sel-bar');
+    show('s2-alt-table');
+    if (type === 'existing') renderExistingLinksTable(S.previewData.existing_links || []);
+    else if (type === 'sites') renderSitesList(S.previewData.sites_list || []);
+  }
+}
+
+function renderNewLinksTable(links) {
+  const bodyRows = links.map((l, i) => {
     const domain = (l.ep1_domain && l.ep2_domain && l.ep1_domain !== l.ep2_domain)
       ? `${l.ep1_domain} → ${l.ep2_domain}`
       : (l.ep1_domain || l.ep2_domain || '—');
-    return `<tr>
+    return `<tr data-idx="${i}">
+      <td style="text-align:center;width:36px;">
+        <input type="checkbox" class="row-check" data-idx="${i}" onchange="onRowCheck()" checked>
+      </td>
       <td style="font-size:11px;color:var(--text-muted);">${domain}</td>
-      <td style="font-weight:500;">${l.ep1_site_name}</td>
-      <td style="font-size:11px;color:var(--text-muted);">${l.ep1_wan_if_name} (${l.ep1_wan_network})</td>
-      <td style="font-weight:500;">${l.ep2_site_name}</td>
-      <td style="font-size:11px;color:var(--text-muted);">${l.ep2_wan_if_name} (${l.ep2_wan_network})</td>
+      <td class="td-src"><strong>${l.ep1_site_name}</strong></td>
+      <td class="td-src" style="font-size:11px;">${l.ep1_wan_if_name} <span style="color:var(--text-muted);">(${l.ep1_wan_network})</span></td>
+      <td class="td-dst"><strong>${l.ep2_site_name}</strong></td>
+      <td class="td-dst" style="font-size:11px;">${l.ep2_wan_if_name} <span style="color:var(--text-muted);">(${l.ep2_wan_network})</span></td>
       <td><span class="wan-badge ${l.wan_type==='publicwan'?'wan-public':'wan-private'}">${l.wan_type==='publicwan'?'Internet':'Private'}</span></td>
     </tr>`;
   }).join('');
-  show('s2-table');
+
+  document.getElementById('s2-table').innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th style="width:36px;text-align:center;">
+            <input type="checkbox" class="chk-all" id="chk-all"
+                   onchange="toggleAllLinks(this.checked)" checked
+                   title="Select / deselect all visible rows">
+          </th>
+          <th>Domain</th>
+          <th class="th-src">Source Site</th>
+          <th class="th-src">Source WAN Interface</th>
+          <th class="th-dst">Destination Site</th>
+          <th class="th-dst">Destination WAN Interface</th>
+          <th>Type</th>
+        </tr>
+        <tr class="filter-row">
+          <th></th>
+          <th><input class="filter-input" id="f-domain"  placeholder="Filter…" oninput="applyFilters()"></th>
+          <th class="th-src"><input class="filter-input" id="f-site1"   placeholder="Filter…" oninput="applyFilters()"></th>
+          <th class="th-src"><input class="filter-input" id="f-wanif1"  placeholder="Filter…" oninput="applyFilters()"></th>
+          <th class="th-dst"><input class="filter-input" id="f-site2"   placeholder="Filter…" oninput="applyFilters()"></th>
+          <th class="th-dst"><input class="filter-input" id="f-wanif2"  placeholder="Filter…" oninput="applyFilters()"></th>
+          <th>
+            <select class="filter-input" id="f-type" onchange="applyFilters()">
+              <option value="">All Types</option>
+              <option value="publicwan">Internet</option>
+              <option value="privatewan">Private</option>
+            </select>
+          </th>
+        </tr>
+      </thead>
+      <tbody>${bodyRows}</tbody>
+    </table>`;
 }
 
-function onAckScale() {
-  const ack = document.getElementById('ack-scale');
-  document.getElementById('btn-apply').disabled = !ack.checked;
+function renderExistingLinksTable(links) {
+  const el = document.getElementById('s2-alt-table');
+  if (!links.length) {
+    el.innerHTML = `<div style="padding:32px;text-align:center;color:var(--text-muted);">
+      <i class="fa-solid fa-link-slash" style="font-size:28px;opacity:.25;margin-bottom:10px;display:block;"></i>
+      No existing anynet links found between the selected sites.</div>`;
+    return;
+  }
+  const rows = links.map(l => {
+    const typeLabel = l.wan_type === 'privatewan' ? 'Private' : (l.wan_type === 'publicwan' ? 'Internet' : (l.wan_type || '—'));
+    const typeCls   = l.wan_type === 'privatewan' ? 'wan-private' : 'wan-public';
+    const status    = l.path_status || '';
+    const sColor    = status.toLowerCase() === 'up' ? 'var(--success)' : (status ? 'var(--danger)' : 'var(--text-muted)');
+    return `<tr>
+      <td class="td-src"><strong>${l.ep1_site_name}</strong></td>
+      <td class="td-dst"><strong>${l.ep2_site_name}</strong></td>
+      <td><span class="wan-badge ${typeCls}">${typeLabel}</span></td>
+      <td style="color:${sColor};font-weight:500;">${status || '—'}</td>
+    </tr>`;
+  }).join('');
+  el.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th class="th-src">Source Site</th>
+          <th class="th-dst">Destination Site</th>
+          <th>Type</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function renderSitesList(sites) {
+  const el = document.getElementById('s2-alt-table');
+  if (!sites.length) {
+    el.innerHTML = `<div style="padding:32px;text-align:center;color:var(--text-muted);">No sites found.</div>`;
+    return;
+  }
+  const rows = sites.map(s => `
+    <tr>
+      <td style="font-weight:600;">${s.name}</td>
+      <td style="color:var(--text-muted);">${s.domain || '—'}</td>
+      <td style="text-align:center;"><strong style="color:var(--accent);">${s.new_links}</strong></td>
+      <td style="text-align:center;color:var(--text-muted);">${s.existing_links}</td>
+    </tr>`).join('');
+  el.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Site Name</th>
+          <th>Domain</th>
+          <th style="text-align:center;">New Links</th>
+          <th style="text-align:center;">Existing Links</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function onAckScale() { updateLinkSel(); }
+
+function getSelectedLinks() {
+  return Array.from(document.querySelectorAll('.row-check:checked'))
+    .map(cb => S.previewLinks[parseInt(cb.dataset.idx)]);
+}
+
+function updateLinkSel() {
+  const all     = document.querySelectorAll('.row-check');
+  const checked = document.querySelectorAll('.row-check:checked');
+  const visible = Array.from(all).filter(cb => cb.closest('tr').style.display !== 'none');
+  const visChk  = visible.filter(cb => cb.checked);
+
+  const master = document.getElementById('chk-all');
+  if (master) {
+    master.indeterminate = visChk.length > 0 && visChk.length < visible.length;
+    master.checked = visible.length > 0 && visChk.length === visible.length;
+  }
+
+  const n     = checked.length;
+  const total = S.previewLinks.length;
+  const countEl = document.getElementById('s2-sel-count');
+  if (countEl) countEl.textContent = `${n} of ${total} link${total !== 1 ? 's' : ''} selected`;
+
+  const hasWarn   = S.scaleWarnings.length > 0;
+  const ackChecked = document.getElementById('ack-scale')?.checked ?? true;
+  const applyBtn  = document.getElementById('btn-apply');
+  applyBtn.disabled = n === 0 || (hasWarn && !ackChecked);
+  applyBtn.innerHTML = n > 0
+    ? `<i class="fa-solid fa-bolt"></i> Apply ${n} Link${n !== 1 ? 's' : ''}`
+    : `<i class="fa-solid fa-bolt"></i> Apply Mesh`;
+}
+
+function toggleAllLinks(checked) {
+  document.querySelectorAll('#s2-table tbody tr').forEach(tr => {
+    if (tr.style.display !== 'none') {
+      const cb = tr.querySelector('.row-check');
+      if (cb) cb.checked = checked;
+    }
+  });
+  updateLinkSel();
+}
+
+function onRowCheck() { updateLinkSel(); }
+
+function selectAllLinks()  {
+  document.querySelectorAll('.row-check').forEach(cb => cb.checked = true);
+  updateLinkSel();
+}
+
+function selectNoneLinks() {
+  document.querySelectorAll('.row-check').forEach(cb => cb.checked = false);
+  updateLinkSel();
+}
+
+function applyFilters() {
+  const fd  = (document.getElementById('f-domain')?.value  || '').toLowerCase();
+  const fs1 = (document.getElementById('f-site1')?.value   || '').toLowerCase();
+  const fw1 = (document.getElementById('f-wanif1')?.value  || '').toLowerCase();
+  const fs2 = (document.getElementById('f-site2')?.value   || '').toLowerCase();
+  const fw2 = (document.getElementById('f-wanif2')?.value  || '').toLowerCase();
+  const ft  = (document.getElementById('f-type')?.value    || '');
+
+  document.querySelectorAll('#s2-table tbody tr').forEach(tr => {
+    const idx = parseInt(tr.dataset.idx);
+    const l   = S.previewLinks[idx];
+    const domain = (l.ep1_domain && l.ep2_domain && l.ep1_domain !== l.ep2_domain)
+      ? `${l.ep1_domain} → ${l.ep2_domain}` : (l.ep1_domain || l.ep2_domain || '');
+    const visible =
+      (!fd  || domain.toLowerCase().includes(fd)) &&
+      (!fs1 || l.ep1_site_name.toLowerCase().includes(fs1)) &&
+      (!fw1 || `${l.ep1_wan_if_name} ${l.ep1_wan_network}`.toLowerCase().includes(fw1)) &&
+      (!fs2 || l.ep2_site_name.toLowerCase().includes(fs2)) &&
+      (!fw2 || `${l.ep2_wan_if_name} ${l.ep2_wan_network}`.toLowerCase().includes(fw2)) &&
+      (!ft  || l.wan_type === ft);
+    tr.style.display = visible ? '' : 'none';
+  });
+  updateLinkSel();
+}
+
+function clearFilters() {
+  ['f-domain','f-site1','f-wanif1','f-site2','f-wanif2'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  const ft = document.getElementById('f-type'); if (ft) ft.value = '';
+  applyFilters();
 }
 
 async function toStep3() {
-  if (!S.previewLinks.length) return;
+  const selected = getSelectedLinks();
+  if (!selected.length) { toast('Select at least one link to apply.', 'info'); return; }
   setStepUI(3);
   hide('s2'); show('s3');
-  hide('btn-done'); hide('btn-view');
-  document.getElementById('s3-sub').textContent = `Creating ${S.previewLinks.length} VPN links…`;
+  hide('btn-done'); hide('btn-back-preview');
+  document.getElementById('s3-sub').textContent = `Creating ${selected.length} VPN link${selected.length !== 1 ? 's' : ''}…`;
 
   const log  = document.getElementById('apply-log');
   const fill = document.getElementById('prog-fill');
@@ -1160,36 +1270,37 @@ async function toStep3() {
   const res = await fetch('/api/mesh/apply', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ session_id: S.sessionId, links: S.previewLinks }),
+    body: JSON.stringify({ session_id: S.sessionId, links: selected }),
   });
 
   await drainSSE(res, evt => {
     if (evt.done) {
-      document.getElementById('prog-text').textContent = `Done — ${evt.success} created, ${evt.failed} failed`;
       fill.style.width = '100%';
       document.getElementById('prog-pct').textContent = '100%';
+      document.getElementById('prog-text').textContent = `Done — ${evt.success} created, ${evt.failed} failed`;
       document.getElementById('s3-sub').textContent   = `Completed: ${evt.success} created, ${evt.failed} failed`;
-      show('btn-done'); show('btn-view');
+      if (evt.failed > 0) {
+        log.innerHTML += `<div style="margin-top:8px;padding:6px 8px;background:#3d1a1a;color:#fca5a5;border-radius:3px;font-size:10px;">
+          ${evt.failed} link${evt.failed!==1?'s':''} failed — see errors above for details</div>`;
+      }
+      show('btn-done'); show('btn-back-preview');
       S.topology = null;
     } else {
       const pct = Math.round((evt.index / evt.total) * 100);
       fill.style.width = pct + '%';
       document.getElementById('prog-pct').textContent  = pct + '%';
       document.getElementById('prog-text').textContent = `${evt.index} / ${evt.total} — ${evt.link || ''}`;
-      log.innerHTML += `<div class="${evt.status==='ok'?'log-ok':'log-error'}">${evt.status==='ok'?'✓':'✗'} ${evt.link || evt.detail}</div>`;
+      const errDetail = evt.status !== 'ok' && evt.detail ? `<span style="opacity:.75;font-size:10px;"> — ${evt.detail}</span>` : '';
+      log.innerHTML += `<div class="${evt.status==='ok'?'log-ok':'log-error'}">${evt.status==='ok'?'✓':'✗'} ${evt.link}${errDetail}</div>`;
       log.scrollTop = log.scrollHeight;
     }
   });
 }
 
-function goToMonitor() {
-  S.topology = null;
-  showPage('monitor');
-}
-
 function resetMesh() {
   S.previewLinks = [];
   S.scaleWarnings = [];
+  S.previewData = null;
   S.selectedDomains.clear();
   toStep1(true);
 }

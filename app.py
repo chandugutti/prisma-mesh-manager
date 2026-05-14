@@ -41,7 +41,7 @@ ENDPOINTS = {
     "wannetworks":        ("v2.1",  "wannetworks"),
     "waninterfaces":      ("v2.10", "sites/{site_id}/waninterfaces"),
     "topology":           ("v3.6",  "topology"),
-    "anynetlinks":        ("v4.0",  "anynetlinks"),
+    "anynetlinks":        ("v3.4",  "anynetlinks"),
     "elements":           ("v3.2",  "elements"),
 }
 
@@ -99,6 +99,11 @@ class MeshRemoveRequest(BaseModel):
     anynet_ids: List[str]
 
 
+class SiteDebugRequest(BaseModel):
+    session_id: str
+    site_id: str
+
+
 # ── URL builder ───────────────────────────────────────────────────────────────
 
 def build_url(session: dict, endpoint: str, **kwargs) -> str:
@@ -145,7 +150,7 @@ async def api_post(url: str, token: str, data: dict) -> dict:
     if resp.status_code not in (200, 201):
         raise HTTPException(
             status_code=resp.status_code,
-            detail=f"Prisma API [{resp.status_code}] → {url}\n{resp.text[:400]}",
+            detail=f"Prisma API [{resp.status_code}] → {url}\n{resp.text[:800]}",
         )
     return resp.json()
 
@@ -280,6 +285,43 @@ async def debug_urls(req: SessionRequest):
     }
 
 
+@app.post("/api/debug/anynetlinks")
+async def debug_anynetlinks(req: SessionRequest):
+    """Fetch existing anynet links to inspect the exact payload format Prisma uses."""
+    s    = get_session(req.session_id)
+    url  = build_url(s, "anynetlinks")
+    data = await api_get(url, s["token"])
+    items = data.get("items", [])
+    return {"count": len(items), "links": items[:5]}  # first 5 to keep response small
+
+
+@app.post("/api/debug/waninterfaces")
+async def debug_waninterfaces(req: SiteDebugRequest):
+    """Return raw WAN interface data for a site — use to diagnose anynet eligibility."""
+    s    = get_session(req.session_id)
+    url  = build_url(s, "waninterfaces", site_id=req.site_id)
+    data = await api_get(url, s["token"])
+    items = data.get("items", [])
+    return {
+        "site_id":   req.site_id,
+        "count":     len(items),
+        "interfaces": [
+            {
+                "id":                   wif.get("id"),
+                "name":                 wif.get("name"),
+                "network_id":           wif.get("network_id"),
+                "vpnlink_configuration": wif.get("vpnlink_configuration"),
+                "label_id":             wif.get("label_id"),
+                "type":                 wif.get("type"),
+                "bound_interfaces":     wif.get("bound_interfaces"),
+                "site_wan_interface_ids": wif.get("site_wan_interface_ids"),
+                "parent_id":            wif.get("parent_id"),
+            }
+            for wif in items
+        ],
+    }
+
+
 # ── Data endpoints ────────────────────────────────────────────────────────────
 
 @app.post("/api/sites")
@@ -360,10 +402,25 @@ async def preview_mesh(req: MeshPreviewRequest):
     # Fetch WAN interfaces AND topology per site in parallel
     async def fetch_wanifs(site_id: str):
         try:
-            url  = build_url(s, "waninterfaces", site_id=site_id)
-            data = await api_get(url, token)
-            return site_id, data.get("items", [])
-        except Exception:
+            url   = build_url(s, "waninterfaces", site_id=site_id)
+            data  = await api_get(url, token)
+            items = data.get("items", [])
+            print(f"[wanifs] site={site_id} total={len(items)}", flush=True)
+            for wif in items:
+                print(
+                    f"  id={wif.get('id')} name={wif.get('name')!r} "
+                    f"network_id={wif.get('network_id')} "
+                    f"vpnlink_cfg={bool(wif.get('vpnlink_configuration'))} "
+                    f"type={wif.get('type')!r} "
+                    f"bound={wif.get('bound_interfaces')}",
+                    flush=True,
+                )
+            with_vpn = [wif for wif in items if wif.get("network_id") and wif.get("vpnlink_configuration")]
+            eligible = with_vpn if with_vpn else [wif for wif in items if wif.get("network_id")]
+            print(f"[wanifs] site={site_id} eligible={len(eligible)}", flush=True)
+            return site_id, eligible
+        except Exception as exc:
+            print(f"[wanifs] site={site_id} ERROR: {exc}", flush=True)
             return site_id, []
 
     wanif_results, topo_links = await asyncio.gather(
@@ -372,14 +429,15 @@ async def preview_mesh(req: MeshPreviewRequest):
     )
     site_wanifs: Dict[str, List] = dict(wanif_results)
 
-    # Build existing anynet pair set from topology (both directions)
-    existing_pairs: set = set()
+    # Build existing anynet site-pair set from topology (both directions).
+    # Dedup by site pair — one anynet link per site pair regardless of WAN interface count.
+    existing_site_pairs: set = set()
     for link in topo_links:
-        s1 = link["ep1_wan_if_id"]
-        s2 = link["ep2_wan_if_id"]
+        s1 = link.get("source_site_id")
+        s2 = link.get("target_site_id")
         if s1 and s2:
-            existing_pairs.add((s1, s2))
-            existing_pairs.add((s2, s1))
+            existing_site_pairs.add((s1, s2))
+            existing_site_pairs.add((s2, s1))
 
     site_name_map   = {site["id"]: site.get("name", site["id"]) for site in selected_sites}
     site_domain_map = {site["id"]: site.get("service_binding") for site in selected_sites}
@@ -388,34 +446,43 @@ async def preview_mesh(req: MeshPreviewRequest):
     skipped   = 0
 
     for site1_id, site2_id in itertools.combinations(site_ids, 2):
+        if (site1_id, site2_id) in existing_site_pairs:
+            skipped += 1
+            continue
+
+        # Find matching WAN interface pairs for display info only.
+        # The apply payload uses site IDs — Prisma auto-selects eligible WAN interfaces.
+        matching_wan = []
         for swi1 in site_wanifs.get(site1_id, []):
             for swi2 in site_wanifs.get(site2_id, []):
                 wn1   = wan_networks.get(swi1.get("network_id", ""), {})
                 wn2   = wan_networks.get(swi2.get("network_id", ""), {})
                 type1 = wn1.get("type")
                 type2 = wn2.get("type")
-                if not type1 or type1 != type2:
-                    continue
-                s1_id = swi1["id"]
-                s2_id = swi2["id"]
-                if (s1_id, s2_id) in existing_pairs:
-                    skipped += 1
-                    continue
-                new_links.append({
-                    "ep1_site_id":     site1_id,
-                    "ep1_site_name":   site_name_map.get(site1_id),
-                    "ep1_domain":      domains_map.get(site_domain_map.get(site1_id), ""),
-                    "ep1_wan_if_id":   s1_id,
-                    "ep1_wan_if_name": swi1.get("name", s1_id),
-                    "ep1_wan_network": wn1.get("name", ""),
-                    "ep2_site_id":     site2_id,
-                    "ep2_site_name":   site_name_map.get(site2_id),
-                    "ep2_domain":      domains_map.get(site_domain_map.get(site2_id), ""),
-                    "ep2_wan_if_id":   s2_id,
-                    "ep2_wan_if_name": swi2.get("name", s2_id),
-                    "ep2_wan_network": wn2.get("name", ""),
-                    "wan_type":        type1,
-                })
+                if type1 and type1 == type2:
+                    matching_wan.append((swi1, swi2, wn1, wn2, type1))
+
+        if not matching_wan:
+            continue
+
+        # Use first matching pair for display; record all pairs count
+        swi1, swi2, wn1, wn2, wan_type = matching_wan[0]
+        new_links.append({
+            "ep1_site_id":      site1_id,
+            "ep1_site_name":    site_name_map.get(site1_id),
+            "ep1_domain":       domains_map.get(site_domain_map.get(site1_id), ""),
+            "ep1_wan_if_id":    swi1.get("id", ""),
+            "ep1_wan_if_name":  swi1.get("name", ""),
+            "ep1_wan_network":  wn1.get("name", ""),
+            "ep2_site_id":      site2_id,
+            "ep2_site_name":    site_name_map.get(site2_id),
+            "ep2_domain":       domains_map.get(site_domain_map.get(site2_id), ""),
+            "ep2_wan_if_id":    swi2.get("id", ""),
+            "ep2_wan_if_name":  swi2.get("name", ""),
+            "ep2_wan_network":  wn2.get("name", ""),
+            "wan_type":         wan_type,
+            "wan_pairs_count":  len(matching_wan),
+        })
 
     pub  = sum(1 for lnk in new_links if lnk["wan_type"] == "publicwan")
     priv = sum(1 for lnk in new_links if lnk["wan_type"] == "privatewan")
@@ -463,9 +530,42 @@ async def preview_mesh(req: MeshPreviewRequest):
                 "limit":          limit,
             })
 
+    # Build display list of existing branch-to-branch links between selected sites
+    existing_links_display = []
+    seen_display: set = set()
+    for site1_id, site2_id in itertools.combinations(site_ids, 2):
+        if (site1_id, site2_id) in existing_site_pairs:
+            pair_key = (min(site1_id, site2_id), max(site1_id, site2_id))
+            if pair_key not in seen_display:
+                seen_display.add(pair_key)
+                link_info = next(
+                    (lnk for lnk in topo_links
+                     if (lnk.get("source_site_id"), lnk.get("target_site_id")) in
+                        [(site1_id, site2_id), (site2_id, site1_id)]),
+                    {},
+                )
+                existing_links_display.append({
+                    "ep1_site_name": site_name_map.get(site1_id, site1_id),
+                    "ep2_site_name": site_name_map.get(site2_id, site2_id),
+                    "wan_type":      link_info.get("wan_type", ""),
+                    "path_status":   link_info.get("path_status", ""),
+                })
+
+    sites_list = sorted([
+        {
+            "name":           site.get("name", site["id"]),
+            "domain":         domains_map.get(site.get("service_binding"), "—"),
+            "new_links":      new_per_site.get(site["id"], 0),
+            "existing_links": existing_per_site.get(site["id"], 0),
+        }
+        for site in selected_sites
+    ], key=lambda x: x["name"])
+
     return {
         "new_links":      new_links,
         "existing_count": skipped,
+        "existing_links": existing_links_display,
+        "sites_list":     sites_list,
         "warnings":       warnings,
         "summary": {
             "total_new":        len(new_links),
@@ -489,27 +589,28 @@ async def apply_mesh(req: MeshApplyRequest):
         success = 0
         failed  = 0
         for i, link in enumerate(req.links):
+            wan_type = link.get("wan_type", "publicwan")
+            anynet_type = "AUTO_PRIVATE" if "private" in wan_type else "AUTO"
             payload = {
-                "name":              None,
-                "description":       None,
-                "tags":              None,
-                "ep1_site_id":       link["ep1_site_id"],
-                "ep2_site_id":       link["ep2_site_id"],
-                "ep1_wan_if_id":     link["ep1_wan_if_id"],
-                "ep2_wan_if_id":     link["ep2_wan_if_id"],
-                "forced":            True,
-                "admin_up":          True,
-                "type":              None,
-                "vpnlink_configuration": None,
+                "ep1_site_id":   link["ep1_site_id"],
+                "ep2_site_id":   link["ep2_site_id"],
+                "ep1_wan_if_id": link["ep1_wan_if_id"],
+                "ep2_wan_if_id": link["ep2_wan_if_id"],
+                "type":          anynet_type,
+                "admin_up":      True,
             }
             label = f"{link['ep1_site_name']} ↔ {link['ep2_site_name']}"
+            print(f"[anynetlinks] POST payload: {json.dumps(payload)}", flush=True)
             try:
                 await api_post(url, s["token"], payload)
                 success += 1
                 status, detail = "ok", ""
+                print(f"[anynetlinks] OK: {label}", flush=True)
             except Exception as e:
                 failed += 1
-                status, detail = "error", str(e)[:120]
+                detail = str(e)
+                status = "error"
+                print(f"[anynetlinks] ERROR {label}: {detail}", flush=True)
 
             yield f"data: {json.dumps({'index': i+1, 'total': total, 'success': success, 'failed': failed, 'status': status, 'link': label, 'detail': detail})}\n\n"
             await asyncio.sleep(0.05)
